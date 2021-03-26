@@ -2,11 +2,31 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const {jwtSecret} = require('../secret/secret') 
-const {checkUsername, requiredInput} = require('./auth-middleware')
+const {checkUsername, checkUserExists} = require('./auth-middleware')
 const User = require('../users/user-modal');
 
-router.post('/register', checkUsername, requiredInput, (req, res, next) => {
+router.post('/register', async (req, res, next) => {
   
+  const credentials = req.body
+  try{
+    if(credentials) {
+    const rounds = process.env.BCRYPT_ROUNDS || 8;
+      
+    const hash = bcrypt.hashSync(credentials.password, rounds)
+      
+    credentials.password = hash;
+      
+    const newUser = await User.add(credentials)
+    res.status(201).json(newUser)
+  
+  } else {
+    res.status(400).json({message: 'username and password required'})
+  }
+} catch (err) {
+  res.status(500).json({message: err.message})
+  next()
+}
+ });
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -32,22 +52,6 @@ router.post('/register', checkUsername, requiredInput, (req, res, next) => {
     4- On FAILED registration due to the `username` being taken,
       the response body should include a string exactly as follows: "username taken".
   */
- const credentials = req.body
-
- if(credentials) {
-   const rounds = process.env.BCRYPT_ROUNDS || 8;
-
-   const hash = bcrypt.hashSync(credentials.password, rounds)
-
-   credentials.password = hash;
-
-   User.add(credentials)
-   .then((user) => {
-     res.status(201).json(user)
-   })
-   .catch(next)
- }
-});
 
 router.post('/login', (req, res) => {
   /*

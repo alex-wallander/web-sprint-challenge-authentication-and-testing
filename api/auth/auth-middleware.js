@@ -15,9 +15,11 @@ function checkUsername() {
     }
   }
 
-  const requiredInput = (req, res, next) => {
-      if(!req.body.username || !req.body.password) {
-          res.status(400).json({message: 'username and password required'})
+
+  const checkUserExists = async (req, res, next) => {
+      const exists = await findBy({username: req.body.username})
+      if(!exists) {
+          res.status(401).json({message: 'user already exists'})
       } else {
           next()
       }
@@ -25,5 +27,6 @@ function checkUsername() {
 
   module.exports = {
     checkUsername,
-    requiredInput
+    // requiredInput,
+    checkUserExists
   }
