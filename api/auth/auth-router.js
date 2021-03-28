@@ -2,10 +2,10 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const {jwtSecret} = require('../secret/secret') 
-const {checkUsername, checkUserExists} = require('./auth-middleware')
+const {checkUsername} = require('./auth-middleware')
 const User = require('../users/user-modal');
 
-router.post('/register', async (req, res, next) => {
+router.post('/register', checkUsername(), async (req, res, next) => {
   
   const credentials = req.body
   try{
@@ -53,7 +53,7 @@ router.post('/register', async (req, res, next) => {
       the response body should include a string exactly as follows: "username taken".
   */
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res, next) => {
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -78,22 +78,29 @@ router.post('/login', (req, res) => {
       the response body should include a string exactly as follows: "invalid credentials".
   */
  const {username, password} = req.body
-
- User.findBy({username})
- .first()
- .then(user => {
-   if(user && bcrypt.compareSync(password, user.password)) {
-     req.session.user = user
-     res.status(200)
+try{
+  if(req.body) {
+ const [newUser] = await User.findBy({username: username})
+ if(newUser && bcrypt.compareSync(password, newUser.password)) {
+   const token = buildToken(newUser)
+   res.status(200).json({message: `welcome, ${username}`, token})
+   } else {
+     res.status(401).json({message: 'invalid credentials'})
    }
- })
+ }
+} catch (err) {
+  next(err)
+}
 });
 
 function buildToken(user) {
   const payload = {
     username: user.username,
-
-  }
+  };
+  const config = {
+    expiresIn: "1d",
+  };
+  return jwt.sign(payload, jwtSecret, config)
 }
 
 module.exports = router;
